@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - "releases/*"
+      - feed-extractor-version
 
 jobs:
   test-javascript:
@@ -17,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -42,20 +43,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Test Local Action with JSON
+      - name: Test Github Action with JSON
         uses: ./
         with:
-          feed_url: "https://modelingmarkets.substack.com/feed"
-          file_path: "temp.json"
+          feed_url: "https://feed.zazzle.com/store/promptlytechnologies/rss"
+          file_path: "./feed.json"
+          parser_options: "{\"useISODateFormat\": false, \"normalization\": false}"
 
       - name: Validate JSON
-        run: node -e "const fs = require('fs'); const data = fs.readFileSync('temp.json', 'utf8'); const obj = JSON.parse(data); if (!obj || !obj.rss || !obj.rss.$) { console.error('Invalid object'); process.exit(1); }"
-
-      - name: Test Local Action with XML
-        uses: ./
-        with:
-          feed_url: "https://modelingmarkets.substack.com/feed"
-          file_path: "temp.xml"
-
-      - name: Validate XML
-        run: node -e "const fs = require('fs'); const data = fs.readFileSync('temp.xml', 'utf8'); if (!data.includes('<rss') || !data.includes('</rss>')) { console.error('Invalid XML'); process.exit(1); }"
+        run: |
+          node -e "
+          const fs = require('fs');
+          const data = fs.readFileSync('./feed.json', 'utf8');
+          const obj = JSON.parse(data);
+          if (!obj || 
+              !obj.title || 
+              !obj.link || 
+              !obj.language || 
+              !obj.pubDate || 
+              !Array.isArray(obj.item) || 
+              obj.item.length === 0) {
+            console.error('Invalid object');
+            process.exit(1);
+          }
+          "
+      
